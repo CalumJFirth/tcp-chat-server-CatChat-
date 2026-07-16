@@ -1,4 +1,4 @@
-import socket, threading
+import socket, threading, json
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -19,9 +19,23 @@ thread = threading.Thread(
     args=()
 )
 thread.start()
-    
+
+
+#Enter username
+message = {
+    "type": "username",
+    "name": input("Enter username: ") 
+}
+json_message = json.dumps(message)
+client.send(json_message.encode())
+
+#Send Message
 while True:
-    msg = input("> ")
-    client.send(msg.encode())
+    message = {
+        "type": "message",
+        "text": input("> ")
+    }
+    json_message = json.dumps(message)
+    client.send(json_message.encode())
 
     

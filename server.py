@@ -1,38 +1,56 @@
-import socket, threading
+import socket, threading, json
 
 #Set up initial server
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server.bind(("127.0.0.1", 5000))
 server.listen()
 print("Starting Server")
 
 
-def handle_client(conn, clients):
+def send_message(message, sender):
+    for client in clients:
+        if client != sender:
+            client.sendall(json.dumps(message).encode())
+            print(message["text"])
+                
+
+def handle_client(client, clients):
     while True:
-        message = conn.recv(1024)
-        if message == b'':
+        data = client.recv(1024)
+        if data == b'':
             print("Client Disconnected")
             break
-        print(message.decode())
-        for client in clients:
-            if client != conn:
-                client.sendall(message)
-                
-    clients.remove(conn)
-    conn.close()
+        
+        text = data.decode()
+        json_message = json.loads(text)
+
+
+        if json_message["type"] == "username":
+            clients[client]["username"] = json_message["name"]
+            
+            
+    
+        if json_message["type"] == "message":
+            send_message(json_message, client)
+                    
+    clients.remove(client)
+    client.close()
     
 
-clients = []
+clients = {}
 
 while True:
-    conn, addr = server.accept()
+    client, addr = server.accept()
     print("Connected:", addr)
 
-    clients.append(conn)
+    clients[client] = {
+        "username":None
+        }
 
     thread = threading.Thread(
         target=handle_client,
-        args=(conn, clients)
+        args=(client, clients)
     )
     thread.start()
     print("Ready for another client")
