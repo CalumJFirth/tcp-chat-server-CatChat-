@@ -7,61 +7,75 @@ server.bind(("127.0.0.1", 5000))
 server.listen()
 print("Starting Server")
 
+#Global Data
+clients = {}
 
-def send_message(message, sender):
 
-    message["username"] = clients[sender]["username"]
-    for client in clients:
-        if client != sender:
+#Functions
+def send_json(client, message):
+    client.sendall(json.dumps(message).encode())
+
+def receive_json(data):
+    text = data.decode()
+    return json.loads(text)
+
+def broadcast(sender, message):
+        for client in clients:
+            if client != sender:
+                send_json(client, message)
+
+def construct_json(type, text, username):
+    message = {
+        "type": type,
+        "text": text,
+        "username": username
+        }
+    return message
             
-            client.sendall(json.dumps(message).encode())
-            
-                
+def handle_joins(sender, message):
+    clients[sender]["username"] = message["name"]
+    text = "*** " + message["name"] + " has joined the Chat! ***"
+    username = clients[sender]["username"]
+    message = construct_json("system", text, username)
+    broadcast(sender, message)
 
-def handle_client(client, clients):
+def handle_leaves(sender):
+    text = "*** " + clients[sender]["username"]  + " has left the Chat! ***"
+    username = clients[sender]["username"]
+    message = construct_json("system", text, username)
+    broadcast(sender, message)
+
+
+def handle_client(client):
+
     while True:
+
         data = client.recv(1024)
         if data == b'':
             print("Client Disconnected")
             break
-        
-        text = data.decode()
-        json_message = json.loads(text)
+
+        json_message = receive_json(data)
 
         if json_message["type"] == "username":
-            clients[client]["username"] = json_message["name"]
-            message = {
-                "type": "system",
-                "text": "*** " + json_message["name"] + " has joined the Chat! ***",
-                "username": clients[client]["username"]
-            }
-            for client in clients:
-                client.sendall(json.dumps(message).encode())
+            handle_joins(client, json_message)
 
- 
-        if json_message["type"] == "message":
-            send_message(json_message, client)
+        elif json_message["type"] == "message":
+            json_message["username"] = clients[client]["username"]
+            broadcast(client, json_message)
 
+        elif json_message["type"] == "test":
+            print("test")
 
-
-    message = {
-        "type": "system",
-        "text": "*** " + clients[client]["username"] + " has left the Chat! ***",
-        "username": clients[client]["username"]
-        }
-    for client in clients:
-        client.sendall(json.dumps(message).encode())
     
-            
+    handle_leaves(client)
     del clients[client]
     client.close()
     
-
-clients = {}
-
+#Main Program
 while True:
-    client, addr = server.accept()
-    print("Connected:", addr)
+    client, address = server.accept()
+    print("Connected:", address)
 
     clients[client] = {
         "username":None
@@ -69,7 +83,7 @@ while True:
 
     thread = threading.Thread(
         target=handle_client,
-        args=(client, clients)
+        args=(client,)
     )
     thread.start()
     print("Ready for another client")
