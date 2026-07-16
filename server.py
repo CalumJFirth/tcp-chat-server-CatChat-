@@ -9,10 +9,13 @@ print("Starting Server")
 
 
 def send_message(message, sender):
+
+    message["username"] = clients[sender]["username"]
     for client in clients:
         if client != sender:
+            
             client.sendall(json.dumps(message).encode())
-            print(message["text"])
+            
                 
 
 def handle_client(client, clients):
@@ -25,16 +28,32 @@ def handle_client(client, clients):
         text = data.decode()
         json_message = json.loads(text)
 
-
         if json_message["type"] == "username":
             clients[client]["username"] = json_message["name"]
-            
-            
-    
+            message = {
+                "type": "system",
+                "text": "*** " + json_message["name"] + " has joined the Chat! ***",
+                "username": clients[client]["username"]
+            }
+            for client in clients:
+                client.sendall(json.dumps(message).encode())
+
+ 
         if json_message["type"] == "message":
             send_message(json_message, client)
-                    
-    clients.remove(client)
+
+
+
+    message = {
+        "type": "system",
+        "text": "*** " + clients[client]["username"] + " has left the Chat! ***",
+        "username": clients[client]["username"]
+        }
+    for client in clients:
+        client.sendall(json.dumps(message).encode())
+    
+            
+    del clients[client]
     client.close()
     
 

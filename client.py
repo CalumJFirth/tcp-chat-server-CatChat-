@@ -7,13 +7,20 @@ print("Connected!")
 
 def recieve_msg():
     while True:
-        message = client.recv(1024)
+        data = client.recv(1024)
 
         if not message:
             print("Disconnected from the server")
             break
-        print(message.decode())
+        text = data.decode()
+        json_message = json.loads(text)
 
+        if json_message["type"] == "message":
+            print(json_message["username"] + ": " + json_message["text"])
+
+        if json_message["type"] == "system":
+            print(json_message["text"])
+ 
 thread = threading.Thread(
     target=recieve_msg,
     args=()
